@@ -1,0 +1,23 @@
+{
+  "name": "dsh-network",
+  "version": "0.1.0-rc.0",
+  "description": "Transport-neutral node connectivity contracts for DeepSeek Harness.",
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "files": ["lib/", "README.md", "LICENSE"],
+  "scripts": { "check": "node --check lib/index.js && npm pack --dry-run" },
+  "keywords": ["deepseek-harness", "dsh", "network", "p2p", "quic", "iroh"],
+  "author": "Xiang Bai",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/baixianger/dsh-network.git" },
+  "homepage": "https://github.com/baixianger/dsh-network#readme",
+  "engines": { "node": ">=22" },
+  "publishConfig": { "access": "public", "tag": "next" }
+}
