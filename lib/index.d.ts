@@ -7,7 +7,6 @@ export interface DshNetworkConfig {
   bindHost?: string;
   hostName?: string;
   statePath?: string;
-  bonjour?: boolean;
 }
 export declare function apply(ctx: any, config?: DshNetworkConfig): Promise<void>;
 export declare class DshNetworkGateway {

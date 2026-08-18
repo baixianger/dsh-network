@@ -4,4 +4,3 @@
       inject: [webServer]
       config:
         gatewayPort: 3081
-        bonjour: true

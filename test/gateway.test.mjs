@@ -112,21 +112,90 @@ test("refresh rotates both access and refresh credentials", async (t) => {
   assert.equal("refreshToken" in state.devices[0], false);
 });
 
-test("the same HTTPS ticket URL pairs a browser with an HttpOnly cookie", async (t) => {
+test("the fragment landing page pairs a browser by POST with a host-bound HttpOnly cookie", async (t) => {
   const f = await fixture();
   t.after(f.close);
   const pairing = await createPairingTicket({ statePath: f.statePath });
-  const response = await fetch(`${f.baseURL}/dsh-network/connect?ticket=${pairing.ticket}`, { redirect: "manual" });
-  assert.equal(response.status, 303);
-  assert.equal(response.headers.get("location"), "/");
+  const landing = await fetch(`${f.baseURL}/dsh-network/connect`);
+  assert.equal(landing.status, 200);
+  assert.match(landing.headers.get("content-security-policy"), /default-src 'none'/);
+  assert.equal(landing.headers.get("set-cookie"), null);
+
+  const response = await fetch(`${f.baseURL}/dsh-network/pair/browser`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ticket: pairing.ticket, hostId: pairing.hostId }),
+  });
+  assert.equal(response.status, 200);
   const cookie = response.headers.get("set-cookie");
-  assert.match(cookie, /dsh_device=/);
+  assert.match(cookie, /__Host-dsh_device=/);
   assert.match(cookie, /HttpOnly/);
   assert.match(cookie, /Secure/);
   assert.match(cookie, /SameSite=Strict/);
 
-  const value = cookie.match(/dsh_device=([^;]+)/)[1];
-  const proxied = await fetch(`${f.baseURL}/browser`, { headers: { cookie: `dsh_device=${value}` } });
+  const value = cookie.match(/__Host-dsh_device=([^;]+)/)[1];
+  const proxied = await fetch(`${f.baseURL}/browser`, { headers: { cookie: `__Host-dsh_device=${value}` } });
   assert.equal(proxied.status, 200);
   assert.equal((await proxied.json()).authorization, null);
+});
+
+test("a ticket cannot be redeemed for a different host identity", async (t) => {
+  const f = await fixture();
+  t.after(f.close);
+  const pairing = await createPairingTicket({ statePath: f.statePath });
+  const response = await fetch(`${f.baseURL}/dsh-network/pair`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ticket: pairing.ticket, hostId: "wrong-host" }),
+  });
+  assert.equal(response.status, 401);
+});
+
+test("an authenticated browser can mint a separate one-use iOS handoff", async (t) => {
+  const f = await fixture();
+  t.after(f.close);
+  const browserPairing = await createPairingTicket({ statePath: f.statePath });
+  const browserResponse = await fetch(`${f.baseURL}/dsh-network/pair/browser`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ticket: browserPairing.ticket, hostId: browserPairing.hostId }),
+  });
+  const browserCookie = browserResponse.headers.get("set-cookie").match(/__Host-dsh_device=([^;]+)/)[1];
+
+  const unauthenticated = await fetch(`${f.baseURL}/dsh-network/handoff/ios`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: f.baseURL },
+    body: JSON.stringify({ origin: f.baseURL }),
+  });
+  assert.equal(unauthenticated.status, 401);
+
+  const handoffResponse = await fetch(`${f.baseURL}/dsh-network/handoff/ios`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie: `__Host-dsh_device=${browserCookie}`,
+      origin: f.baseURL,
+    },
+    body: JSON.stringify({ origin: f.baseURL }),
+  });
+  assert.equal(handoffResponse.status, 200);
+  const handoff = new URL((await handoffResponse.json()).url);
+  assert.equal(handoff.protocol, "dsh:");
+  assert.equal(handoff.host, "pair");
+  const fragment = new URLSearchParams(handoff.hash.slice(1));
+  assert.equal(fragment.get("h"), browserPairing.hostId);
+  assert.equal(fragment.get("u"), f.baseURL);
+
+  const nativePair = await fetch(`${f.baseURL}/dsh-network/pair`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ticket: fragment.get("t"), hostId: fragment.get("h") }),
+  });
+  assert.equal(nativePair.status, 200);
+  const replay = await fetch(`${f.baseURL}/dsh-network/pair`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ticket: fragment.get("t"), hostId: fragment.get("h") }),
+  });
+  assert.equal(replay.status, 401);
 });
