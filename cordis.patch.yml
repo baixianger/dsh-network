@@ -1,0 +1,7 @@
+- insert:
+    - id: dsh-network
+      name: dsh-network
+      inject: [webServer]
+      config:
+        gatewayPort: 3081
+        bonjour: true

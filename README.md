@@ -1,38 +1,85 @@
 # DSH Network
 
-> A transport-neutral connectivity layer for DeepSeek Harness nodes.
+> One secure connection layer for DeepSeek Harness on a LAN, Tailnet, or HTTPS server.
 
-`dsh-network` defines the boundary between DSH's distributed features and the network that carries them. A first adapter will use Iroh for encrypted QUIC, NAT traversal, discovery, and relay fallback; the contract itself stays independent of Iroh.
+`dsh-network` is an independent DSH server plugin. It keeps DSH bound to
+`127.0.0.1`, places an authenticated gateway in front of it, and gives every
+host a persistent `hostId` so clients can merge multiple routes to one server.
 
-| Layer | Responsibility |
-| --- | --- |
-| `dsh-network` | Endpoint identity, peer addresses, connections, streams, reachability |
-| `dsh-weave` | Membership, capability policy, outbox, task routing |
-| `dsh-bridge` | Local DSH session events |
-| `dsh-chat` | Human conversation and task controls |
+| Route | Discovery | Address |
+| --- | --- | --- |
+| Home / LAN | Bonjour `_dsh._tcp` | Gateway on the local machine |
+| Tailnet | QR or manual | Tailscale Serve MagicDNS URL |
+| Public server | QR or manual | User-managed HTTPS URL |
 
-## Status
+Bonjour records contain only the protocol version, `hostId`, authentication
+mode, and port. Credentials are never broadcast.
 
-`0.1.0-rc.0` is a design-preview package that reserves the public API surface. It does not yet open network connections.
+## Install
 
 ```bash
-npm install dsh-network@next
+dsh plugin --profile web add dsh-network@next
+dsh web
 ```
 
-## Contract
+The plugin starts its gateway on port `3081` and publishes it on the current
+LAN. DSH itself remains on loopback port `3080`.
 
-An eventual adapter exposes four concepts:
+## Pair on the LAN
 
-- **Endpoint** — persistent node identity and local listener lifecycle.
-- **Peer address** — a verified route to a named endpoint.
-- **Connection** — authenticated, encrypted peer relationship with lifecycle events.
-- **Stream** — ordered bidirectional bytes owned by an application protocol such as `dsh-weave/1`.
+With the server running, choose the automatically discovered host in the iOS
+app and scan a fresh ticket from the server shell:
 
-Transport code must never decide DSH membership or authorize task execution. Those policy decisions belong to `dsh-weave` and the local DSH approval layer.
+```bash
+npx dsh-network pair
+```
+
+## Configure a Tailnet
+
+Tailscale must already be installed and signed in. This command configures
+Tailscale Serve to forward the private MagicDNS HTTPS URL to the authenticated
+gateway, then prints a pairing QR code:
+
+```bash
+npx dsh-network setup
+```
+
+Bonjour is not forwarded through a Tailnet. The QR code supplies the MagicDNS
+URL to the iOS app once; the app then remembers the route.
+
+## Public HTTPS server
+
+Public discovery is intentionally unsupported. Put port `3081` behind a
+trusted HTTPS reverse proxy, then generate a QR code containing that URL:
+
+```bash
+npx dsh-network pair --url https://dsh.example.com
+```
+
+Do not expose DSH port `3080` itself. Public mode requires TLS and should also
+use provider firewall and rate-limit controls.
+
+## Credential lifecycle
+
+1. The QR contains a random, single-use pairing ticket valid for five minutes.
+2. Pairing issues a device refresh credential and a one-hour access token.
+3. The client refreshes automatically and both credentials rotate.
+4. Only credential hashes are stored under `~/.dsh/network/state.json`.
+5. Bonjour TXT records never contain a ticket, token, or secret.
+
+The gateway rate-limits pairing attempts. Device listing and revocation will be
+exposed in the DSH settings UI before a stable release.
+
+## Platform support
+
+The mDNS/DNS-SD implementation is cross-platform. macOS works without extra
+software; Linux and Windows may require allowing the DSH process through the
+host firewall for TCP `3081` and multicast UDP `5353`.
 
 ## Development
 
 ```bash
+npm test
 npm run check
 ```
 
