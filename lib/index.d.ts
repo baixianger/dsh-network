@@ -7,6 +7,7 @@ export interface DshNetworkConfig {
   bindHost?: string;
   hostName?: string;
   statePath?: string;
+  iosAppDownloadURL?: string;
 }
 export declare function apply(ctx: any, config?: DshNetworkConfig): Promise<void>;
 export declare class DshNetworkGateway {

@@ -22,6 +22,21 @@ dsh web
 The plugin starts its authenticated gateway on port `3081`. DSH itself remains
 on loopback port `3080`.
 
+### Optional iOS download card
+
+Once the iOS app has a real App Store or TestFlight HTTPS URL, set
+`iosAppDownloadURL` in the `dsh-network` plugin config. The local Web client
+then shows one small, dismissible download card on its first eligible browser
+launch. It uses DSH's additive `shell.overlay` slot and never replaces or
+reflows the application shell. With no URL configured, no card is shown.
+
+```yaml
+# ~/.dsh/profiles/web/cordis.patch.yml
+- id: dsh-network
+  config:
+    iosAppDownloadURL: https://apps.apple.com/app/id000000000
+```
+
 ## Pair on the LAN
 
 With the server running, generate a QR containing a private LAN address and
