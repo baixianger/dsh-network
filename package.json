@@ -1,6 +1,6 @@
 {
   "name": "dsh-network",
-  "version": "0.1.0-rc.2",
+  "version": "0.1.0-rc.3",
   "description": "Secure LAN, Tailnet, and remote connectivity for DeepSeek Harness.",
   "type": "module",
   "main": "./lib/index.js",

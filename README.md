@@ -22,6 +22,17 @@ dsh web
 The plugin starts its authenticated gateway on port `3081`. DSH itself remains
 on loopback port `3080`.
 
+In another terminal, run the setup assistant. With no mode supplied it always
+asks which route to place in the QR code; it never silently selects one:
+
+```bash
+dsh plugin --profile web exec dsh-network setup
+
+# 1. LAN / home network
+# 2. Tailscale / Tailnet
+# 3. Custom address
+```
+
 ### Optional iOS download card
 
 Once the iOS app has a real App Store or TestFlight HTTPS URL, set
@@ -62,8 +73,16 @@ npx dsh-network setup tailscale
 ```
 
 The QR code supplies the MagicDNS URL to the iOS app once; the app then
-remembers the route. The historical `dsh-network setup` command remains an
-alias for `setup tailscale`.
+remembers the route.
+
+## Custom address
+
+Choose option 3 in the setup assistant and paste an address that already
+reaches the authenticated gateway, or provide it explicitly:
+
+```bash
+npx dsh-network setup custom --url https://dsh.example.com
+```
 
 ## Public HTTPS server
 
