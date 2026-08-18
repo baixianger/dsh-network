@@ -1,16 +1,16 @@
 # DSH Network
 
-> One secure connection layer for DeepSeek Harness on a LAN, Tailnet, or HTTPS server.
+> One secure connection layer for a DeepSeek Harness Host on a LAN, Tailnet, or public HTTPS route.
 
-`dsh-network` is an independent DSH server plugin. It keeps DSH bound to
+`dsh-network` is an independent DSH Host plugin. It keeps DSH bound to
 `127.0.0.1`, places an authenticated gateway in front of it, and gives every
-host a persistent `hostId` so clients can merge multiple routes to one server.
+Host a persistent `hostId` so clients can merge multiple routes to one Host.
 
 | Route | Discovery | Address |
 | --- | --- | --- |
 | Home / LAN | QR or pasted pairing link | Gateway on the local machine |
 | Tailnet | QR or manual | Tailscale Serve MagicDNS URL |
-| Public server | QR or manual | User-managed HTTPS URL |
+| Public Host | QR or manual | User-managed HTTPS URL |
 
 ## Install
 
@@ -50,7 +50,7 @@ reflows the application shell. With no URL configured, no card is shown.
 
 ## Pair on the LAN
 
-With the server running, generate a QR containing a private LAN address and
+With the DSH Host running, generate a QR containing a private LAN address and
 scan it in the iOS app:
 
 ```bash
@@ -84,7 +84,7 @@ reaches the authenticated gateway, or provide it explicitly:
 npx dsh-network setup custom --url https://dsh.example.com
 ```
 
-## Public HTTPS server
+## Public HTTPS Host
 
 Public discovery is intentionally unsupported. Put port `3081` behind a
 trusted HTTPS reverse proxy, then generate a QR code containing that URL:
@@ -100,7 +100,7 @@ The plugin does not install or edit a reverse proxy, container, firewall,
 certificate, DNS record, or hosting panel. It only accepts the working HTTPS
 address that the user already operates. See
 [`docs/internet-compatibility.md`](docs/internet-compatibility.md) for the
-public-server boundary.
+public Host boundary.
 
 ## Credential lifecycle
 
@@ -111,7 +111,7 @@ public-server boundary.
 5. Pairing links are generated on demand and are never broadcast.
 
 When an authenticated iPhone browser opens DSH, the web client can mint a new
-one-minute, app-only ticket and hand the same Server to the DSH iOS app. Browser
+one-minute, app-only ticket and hand the same Host to the DSH iOS app. Browser
 cookies and iOS Keychain credentials remain separate.
 
 The gateway rate-limits pairing attempts. Device listing and revocation will be

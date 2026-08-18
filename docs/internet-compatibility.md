@@ -1,4 +1,4 @@
-# Public server boundary
+# Public Host boundary
 
 `dsh-network` treats every public deployment as a user-managed HTTPS origin.
 The plugin does not discover, install, edit, reload, or take ownership of DNS,
@@ -46,5 +46,5 @@ one-minute ticket for that handoff instead of exposing the browser cookie.
 ## Client behavior
 
 Clients deduplicate multiple LAN, Tailnet, or public routes by Host ID. Adding
-a second route to the same Host updates that Host instead of creating a second
-Server. Public discovery is intentionally unsupported.
+a second route to the same Host updates that Host instead of creating a duplicate
+Host. Public discovery is intentionally unsupported.
