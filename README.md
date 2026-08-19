@@ -45,7 +45,7 @@ reflows the application shell. With no URL configured, no card is shown.
 # ~/.dsh/profiles/web/cordis.patch.yml
 - id: dsh-network
   config:
-    iosAppDownloadURL: https://apps.apple.com/app/id000000000
+    iosAppDownloadURL: https://apps.apple.com/app/id6802863224
 ```
 
 ## Pair on the LAN
