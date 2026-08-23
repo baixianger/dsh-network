@@ -16,7 +16,10 @@ export declare class DshNetworkGateway {
   close(): Promise<void>;
   readonly port: number;
   readonly state: { hostId: string; tickets: unknown[]; devices: unknown[] };
+  info(): { protocolVersion: number; hostId: string; name: string; requiresPairing: boolean };
+  status(): { protocolVersion: number; hostId: string; name: string; requiresPairing: boolean; gatewayPort: number; bindHost: string; pairedDevices: number };
 }
 export declare function defaultStatePath(): string;
+export declare function lanURL(port: number): string;
 export declare function loadOrCreateState(path?: string): Promise<{ hostId: string; tickets: unknown[]; devices: unknown[] }>;
 export declare function createPairingTicket(options?: { statePath?: string; ttlSeconds?: number }): Promise<{ ticket: string; expiresAt: number; hostId: string }>;

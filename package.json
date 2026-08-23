@@ -1,6 +1,6 @@
 {
   "name": "dsh-network",
-  "version": "0.1.0-rc.4",
+  "version": "0.1.0-rc.5",
   "description": "Secure LAN, Tailnet, and remote connectivity for DeepSeek Harness.",
   "type": "module",
   "main": "./lib/index.js",
@@ -23,7 +23,8 @@
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-runtime",
-        "@deepseek-ai/dsh-client-ui-layout"
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-settings"
       ],
       "platform": "web"
     },
@@ -62,6 +63,7 @@
     "node": ">=22"
   },
   "dependencies": {
+    "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0"
   },
   "peerDependencies": {

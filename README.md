@@ -48,6 +48,14 @@ reflows the application shell. With no URL configured, no card is shown.
     iosAppDownloadURL: https://apps.apple.com/app/id6802863224
 ```
 
+## Settings page
+
+The plugin also contributes a **Network** page to DSH Settings (via the
+`settings.section` slot). It shows the Host identity, gateway address, and
+paired-device count, and can mint a fresh pairing QR right from the browser —
+no terminal needed. Leave the address field empty to auto-detect the LAN URL,
+or paste a Tailnet / public HTTPS URL to place that route in the QR code.
+
 ## Pair on the LAN
 
 With the DSH Host running, generate a QR containing a private LAN address and
