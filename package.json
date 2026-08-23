@@ -1,6 +1,6 @@
 {
   "name": "dsh-network",
-  "version": "0.1.0-rc.5",
+  "version": "0.1.0-rc.6",
   "description": "Secure LAN, Tailnet, and remote connectivity for DeepSeek Harness.",
   "type": "module",
   "main": "./lib/index.js",
@@ -68,7 +68,8 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.1",
-    "@deepseek-ai/dsh-host-webserver": ">=0.1.0-rc.7"
+    "@deepseek-ai/dsh-host-webserver": ">=0.1.0-rc.7",
+    "@deepseek-ai/dsh-host-apiproxy": ">=0.1.0-rc.7"
   },
   "publishConfig": {
     "access": "public",

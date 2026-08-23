@@ -48,6 +48,35 @@ reflows the application shell. With no URL configured, no card is shown.
     iosAppDownloadURL: https://apps.apple.com/app/id6802863224
 ```
 
+## History chunk trimming
+
+Long agent turns emit a huge number of streaming `assistant/chunk` frames (a
+single turn can produce 95k+ deltas), and every history read serializes all of
+them — a 50-message tail can weigh tens of megabytes. `dsh-network` shadows
+`/api/session.history` and `/api/subagents.history` with exact routes and
+removes the chunks that never surface as display rows: settled steps are fully
+replaced by their final `assistant/message`, so only the in-progress step's
+partial and each settled step's first token-delta (for first-token timing) are
+kept. The response is otherwise byte-identical, `hasMore`/`projections` are
+untouched, and both the Web GUI and the iOS client fold the trimmed page the
+same way they fold the full one — typically 80–95% smaller over the wire.
+
+Enabled by default; disable it or tune the fence in the plugin config:
+
+```yaml
+# ~/.dsh/profiles/web/cordis.patch.yml
+- id: dsh-network
+  config:
+    gatewayPort: 3081
+    historyChunkTrim: false        # set false to serve the untrimmed page
+    # historyTrustedHosts:         # mirror client-connection trustedHosts when
+    #   - 192.168.1.5:3080         # the web server binds 0.0.0.0 and clients
+    #                             # reach it directly by LAN address
+```
+
+The trim routes reuse the same Host/cross-site/origin fence as the core `/api`
+route; requests that would have been refused there are refused here too.
+
 ## Settings page
 
 The plugin also contributes a **Network** page to DSH Settings (via the

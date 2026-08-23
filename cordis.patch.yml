@@ -4,3 +4,7 @@
       inject: [webServer]
       config:
         gatewayPort: 3081
+        # 裁剪 session.history / subagents.history 响应中的冗余 assistant/chunk 流式增量
+        # （长会话可省 99%+ 体积，语义不变）。置 false 关闭；0.0.0.0 部署时如直连 LAN 地址，
+        # 将 historyTrustedHosts 镜像为 client-connection 的 trustedHosts。
+        historyChunkTrim: true

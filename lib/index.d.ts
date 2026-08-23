@@ -8,6 +8,20 @@ export interface DshNetworkConfig {
   hostName?: string;
   statePath?: string;
   iosAppDownloadURL?: string;
+  /**
+   * Trim redundant assistant/chunk streaming deltas from
+   * session.history / subagents.history responses. A long turn can emit 95k+
+   * chunk frames that settle into one assistant/message; removing them cuts
+   * the wire page by >99% with no semantic change (the in-progress partial and
+   * per-step first token-delta are kept). Default true.
+   */
+  historyChunkTrim?: boolean;
+  /**
+   * Extra trusted Host authorities for the trimmed-history route fence.
+   * Mirror client-connection's trustedHosts when the web server binds 0.0.0.0
+   * and clients reach it directly by LAN address. Default [] (loopback only).
+   */
+  historyTrustedHosts?: string[];
 }
 export declare function apply(ctx: any, config?: DshNetworkConfig): Promise<void>;
 export declare class DshNetworkGateway {
