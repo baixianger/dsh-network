@@ -112,7 +112,7 @@ test("refresh rotates both access and refresh credentials", async (t) => {
   assert.equal("refreshToken" in state.devices[0], false);
 });
 
-test("the fragment landing page pairs a browser by POST with a host-bound HttpOnly cookie", async (t) => {
+test("the fragment landing page pairs an HTTP LAN browser with a host-bound HttpOnly cookie", async (t) => {
   const f = await fixture();
   t.after(f.close);
   const pairing = await createPairingTicket({ statePath: f.statePath });
@@ -128,13 +128,13 @@ test("the fragment landing page pairs a browser by POST with a host-bound HttpOn
   });
   assert.equal(response.status, 200);
   const cookie = response.headers.get("set-cookie");
-  assert.match(cookie, /__Host-dsh_device=/);
+  assert.match(cookie, /dsh_device=/);
   assert.match(cookie, /HttpOnly/);
-  assert.match(cookie, /Secure/);
+  assert.doesNotMatch(cookie, /Secure/);
   assert.match(cookie, /SameSite=Strict/);
 
-  const value = cookie.match(/__Host-dsh_device=([^;]+)/)[1];
-  const proxied = await fetch(`${f.baseURL}/browser`, { headers: { cookie: `__Host-dsh_device=${value}` } });
+  const value = cookie.match(/dsh_device=([^;]+)/)[1];
+  const proxied = await fetch(`${f.baseURL}/browser`, { headers: { cookie: `dsh_device=${value}` } });
   assert.equal(proxied.status, 200);
   assert.equal((await proxied.json()).authorization, null);
 });
@@ -160,7 +160,7 @@ test("an authenticated browser can mint a separate one-use iOS handoff", async (
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ ticket: browserPairing.ticket, hostId: browserPairing.hostId }),
   });
-  const browserCookie = browserResponse.headers.get("set-cookie").match(/__Host-dsh_device=([^;]+)/)[1];
+  const browserCookie = browserResponse.headers.get("set-cookie").match(/dsh_device=([^;]+)/)[1];
 
   const unauthenticated = await fetch(`${f.baseURL}/dsh-network/handoff/ios`, {
     method: "POST",
@@ -173,7 +173,7 @@ test("an authenticated browser can mint a separate one-use iOS handoff", async (
     method: "POST",
     headers: {
       "content-type": "application/json",
-      cookie: `__Host-dsh_device=${browserCookie}`,
+      cookie: `dsh_device=${browserCookie}`,
       origin: f.baseURL,
     },
     body: JSON.stringify({ origin: f.baseURL }),
@@ -198,4 +198,27 @@ test("an authenticated browser can mint a separate one-use iOS handoff", async (
     body: JSON.stringify({ ticket: fragment.get("t"), hostId: fragment.get("h") }),
   });
   assert.equal(replay.status, 401);
+});
+
+test("a one-time ticket has exactly one winner under concurrent redemption", async (t) => {
+  const f = await fixture();
+  t.after(f.close);
+  const pairing = await createPairingTicket({ statePath: f.statePath });
+  const redeem = () => fetch(`${f.baseURL}/dsh-network/pair`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ticket: pairing.ticket, hostId: pairing.hostId }),
+  });
+  const responses = await Promise.all([redeem(), redeem()]);
+  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 401]);
+  const state = JSON.parse(await readFile(f.statePath, "utf8"));
+  assert.equal(state.devices.length, 1);
+});
+
+test("concurrent ticket creation preserves every ticket", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "dsh-network-state-test-"));
+  const statePath = join(directory, "state.json");
+  await Promise.all(Array.from({ length: 12 }, () => createPairingTicket({ statePath })));
+  const state = JSON.parse(await readFile(statePath, "utf8"));
+  assert.equal(state.tickets.length, 12);
 });

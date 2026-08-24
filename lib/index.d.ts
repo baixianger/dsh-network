@@ -10,7 +10,7 @@ export interface DshNetworkConfig {
   iosAppDownloadURL?: string;
   /**
    * Trim redundant assistant/chunk streaming deltas from
-   * session.history / subagents.history responses. A long turn can emit 95k+
+   * session.history / subagent.history responses. A long turn can emit 95k+
    * chunk frames that settle into one assistant/message; removing them cuts
    * the wire page by >99% with no semantic change (the in-progress partial and
    * per-step first token-delta are kept). Default true.
@@ -23,7 +23,8 @@ export interface DshNetworkConfig {
    */
   historyTrustedHosts?: string[];
 }
-export declare function apply(ctx: any, config?: DshNetworkConfig): Promise<void>;
+export declare const Config: import("@standard-schema/spec").StandardSchemaV1<unknown, DshNetworkConfig>;
+export declare function apply(ctx: Context, config?: DshNetworkConfig): Promise<void>;
 export declare class DshNetworkGateway {
   constructor(options: Record<string, unknown>);
   start(): Promise<this>;
@@ -37,3 +38,5 @@ export declare function defaultStatePath(): string;
 export declare function lanURL(port: number): string;
 export declare function loadOrCreateState(path?: string): Promise<{ hostId: string; tickets: unknown[]; devices: unknown[] }>;
 export declare function createPairingTicket(options?: { statePath?: string; ttlSeconds?: number }): Promise<{ ticket: string; expiresAt: number; hostId: string }>;
+declare module "@deepseek-ai/cordis" { interface Context { dshNetwork: DshNetworkGateway; } }
+import type { Context } from "@deepseek-ai/cordis";
