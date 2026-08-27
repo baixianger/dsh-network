@@ -1,10 +1,26 @@
 # DSH Network
 
-> One secure connection layer for a DeepSeek Harness Host on a LAN, Tailnet, or public HTTPS route.
+[English](README.md) | [简体中文](README.zh.md)
+
+> Securely connect to one DeepSeek Harness Host over your LAN, Tailnet, or public HTTPS route.
 
 `dsh-network` is an independent DSH Host plugin. It keeps DSH bound to
 `127.0.0.1`, places an authenticated gateway in front of it, and gives every
 Host a persistent `hostId` so clients can merge multiple routes to one Host.
+
+## What it gives you
+
+- **One Host, multiple routes** — use a local address at home, a private Tailscale
+  address away from home, or your own public HTTPS endpoint without creating
+  duplicate Hosts in the client.
+- **Scan-to-pair access** — create a short-lived, single-use QR code from the
+  terminal or the DSH Settings page.
+- **Credentials designed for clients** — access and refresh credentials rotate;
+  only hashes are persisted by the Host.
+- **Smaller long-session responses** — optional history chunk trimming removes
+  redundant streaming deltas while preserving the messages rendered by DSH.
+- **No public exposure of DSH itself** — the core Web server stays on loopback;
+  remote traffic goes through the authenticated gateway.
 
 | Route | Discovery | Address |
 | --- | --- | --- |
@@ -12,7 +28,7 @@ Host a persistent `hostId` so clients can merge multiple routes to one Host.
 | Tailnet | QR or manual | Tailscale Serve MagicDNS URL |
 | Public Host | QR or manual | User-managed HTTPS URL |
 
-## Install
+## Quick start
 
 ```bash
 dsh plugin --profile web add dsh-network@next
@@ -32,6 +48,9 @@ dsh plugin --profile web exec dsh-network setup
 # 2. Tailscale / Tailnet
 # 3. Custom address
 ```
+
+Scan the generated QR code with your client. For LAN setup, the phone and Host
+must be able to reach each other on the same trusted network.
 
 ### Optional iOS download card
 
@@ -84,6 +103,8 @@ The plugin also contributes a **Network** page to DSH Settings (via the
 paired-device count, and can mint a fresh pairing QR right from the browser —
 no terminal needed. Leave the address field empty to auto-detect the LAN URL,
 or paste a Tailnet / public HTTPS URL to place that route in the QR code.
+
+## Choose a connection route
 
 ## Pair on the LAN
 
@@ -159,6 +180,22 @@ exposed in the DSH settings UI before a stable release.
 LAN setup uses ordinary HTTP addressing and Tailnet setup uses Tailscale's
 HTTPS Serve. Linux and Windows may require allowing the DSH process through the
 host firewall for TCP `3081` on trusted private interfaces.
+
+## Troubleshooting
+
+- **The phone cannot open the LAN address:** make sure both devices are on the
+  same network, allow inbound TCP `3081` in the Host firewall, and rerun setup
+  with `--url http://HOST:3081` if auto-detection chose the wrong interface.
+- **Tailscale setup fails:** install Tailscale, sign in, and confirm that
+  `tailscale status` works before running `setup tailscale` again.
+- **A public URL does not connect:** verify that the reverse proxy forwards both
+  HTTP and WebSocket traffic to port `3081`, and that its TLS certificate is
+  trusted by the client.
+- **A QR code expired:** generate another one. Pairing tickets are deliberately
+  single-use and valid for five minutes.
+
+For the exact public deployment boundary, see
+[`docs/internet-compatibility.md`](docs/internet-compatibility.md).
 
 ## Development
 

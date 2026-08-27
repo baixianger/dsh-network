@@ -1,6 +1,6 @@
 {
   "name": "dsh-network",
-  "version": "0.1.0-rc.7",
+  "version": "0.1.0-rc.8",
   "description": "Secure LAN, Tailnet, and remote connectivity for DeepSeek Harness.",
   "type": "module",
   "main": "./lib/index.js",
@@ -38,6 +38,7 @@
     "docs/",
     "cordis.patch.yml",
     "README.md",
+    "README.zh.md",
     "RELEASES.md",
     "LICENSE"
   ],
