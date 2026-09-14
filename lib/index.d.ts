@@ -4,7 +4,7 @@ export declare const name = "dsh-network";
 export declare const inject: readonly ["webServer"];
 export interface DshNetworkConfig {
   gatewayPort?: number;
-  bindHost?: string;
+  bindHost?: "127.0.0.1" | "0.0.0.0";
   hostName?: string;
   statePath?: string;
   iosAppDownloadURL?: string;

@@ -1,5 +1,11 @@
 # Releases
 
+## 0.1.0-rc.9 · 2026-09-14
+
+Refresh bilingual host/pairing UI, preserve history semantics and request-origin checks, harden gateway lifecycle, and update setup documentation.
+
+Source: [`v0.1.0-rc.9`](https://github.com/baixianger/dsh-network/tree/v0.1.0-rc.9). Distribution: `latest`.
+
 Release tags point at the exact source commit used to build the package. The bookkeeping commit that fills in a source SHA intentionally comes after that tag.
 
 | Version | Tag | Source commit | Summary |

@@ -121,7 +121,7 @@ test("history trim handler serves the trimmed page in the RPC wire envelope", as
   // Fake request: loopback Host + async-iterable JSON body.
   const body = JSON.stringify({ type: "client-request", rpcId: "rpc-1", method: "session.history", payload: { sessionId: "s-1" } });
   const request = {
-    headers: { host: "127.0.0.1:3080" },
+    headers: { host: "127.0.0.1:3080", "content-type": "application/json" },
     [Symbol.asyncIterator]() {
       let sent = false;
       return {
@@ -133,7 +133,7 @@ test("history trim handler serves the trimmed page in the RPC wire envelope", as
       };
     },
   };
-  const response = { writeHead() {}, end() {}, headersSent: false };
+  const response = { writeHead() {}, end() {}, on() {}, headersSent: false };
   let wire;
   response.writeHead = (_status, headers) => { response.headers = headers; };
   response.end = (body2) => { wire = JSON.parse(body2.toString()); };
@@ -165,7 +165,7 @@ test("history trim handler refuses untrusted hosts and bad envelopes", async () 
   await handler(untrusted, r1);
   assert.equal(status1, 403);
 
-  const badEnvelope = { headers: { host: "127.0.0.1" }, [Symbol.asyncIterator]() { let sent = false; return { next: async () => sent ? { done: true } : (sent = true, { done: false, value: Buffer.from("{\"nope\":true}") }) }; } };
+  const badEnvelope = { headers: { host: "127.0.0.1", "content-type": "application/json" }, [Symbol.asyncIterator]() { let sent = false; return { next: async () => sent ? { done: true } : (sent = true, { done: false, value: Buffer.from("{\"nope\":true}") }) }; } };
   const r2 = { writeHead() {}, end() {}, headersSent: false };
   let wire2;
   r2.writeHead = () => {};
@@ -173,4 +173,153 @@ test("history trim handler refuses untrusted hosts and bad envelopes", async () 
   await handler(badEnvelope, r2);
   assert.equal(wire2.result.ok, false);
   assert.equal(wire2.result.error.code, "bad-request");
+});
+
+function jsonRequest(body, headers = {}) {
+  const text = JSON.stringify(body);
+  return {
+    headers: { host: "127.0.0.1:3080", "content-type": "application/json", ...headers },
+    [Symbol.asyncIterator]() {
+      let sent = false;
+      return {
+        next: async () => {
+          if (sent) return { done: true };
+          sent = true;
+          return { done: false, value: Buffer.from(text) };
+        },
+      };
+    },
+  };
+}
+
+function captureResponse() {
+  const listeners = new Map();
+  const response = {
+    status: 0,
+    headersSent: false,
+    writableEnded: false,
+    body: undefined,
+    writeHead(status) { response.status = status; response.headersSent = true; },
+    end(body) { response.writableEnded = true; response.body = body; },
+    on(event, listener) { listeners.set(event, listener); },
+    emit(event) { listeners.get(event)?.(); },
+  };
+  return response;
+}
+
+test("history trim handler forwards the request signal and aborts it on disconnect", async () => {
+  const { createHistoryTrimHandler } = await import("../lib/history-trim.js");
+  let release;
+  let seen;
+  const apiProxy = {
+    sessions: {
+      history: async ({ rpcId }, signal) => {
+        seen = signal;
+        await new Promise((resolve) => { release = resolve; });
+        return { rpcId, result: { ok: true, value: { events: [], hasMore: false } } };
+      },
+    },
+  };
+  const handler = createHistoryTrimHandler({ method: "session.history", apiProxy });
+  const response = captureResponse();
+  const pending = handler(
+    jsonRequest({ type: "client-request", rpcId: "rpc-signal", method: "session.history", payload: { sessionId: "s-1" } }),
+    response
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(seen instanceof AbortSignal, true);
+  assert.equal(seen.aborted, false);
+  // The client goes away before the response ends: the forwarded signal aborts.
+  response.emit("close");
+  assert.equal(seen.aborted, true);
+  release();
+  await pending;
+  assert.equal(response.status, 200);
+});
+
+test("history trim handler prefers a signal supplied by the route", async () => {
+  const { createHistoryTrimHandler } = await import("../lib/history-trim.js");
+  let seen;
+  const apiProxy = {
+    sessions: {
+      history: async ({ rpcId }, signal) => {
+        seen = signal;
+        return { rpcId, result: { ok: true, value: { events: [], hasMore: false } } };
+      },
+    },
+  };
+  const controller = new AbortController();
+  await createHistoryTrimHandler({ method: "session.history", apiProxy })(
+    jsonRequest({ type: "client-request", rpcId: "rpc-supplied", method: "session.history", payload: { sessionId: "s-1" } }),
+    captureResponse(),
+    controller.signal
+  );
+  assert.equal(seen, controller.signal);
+});
+
+test("history trim handler rejects unexpected payload keys and bad modes", async () => {
+  const { createHistoryTrimHandler } = await import("../lib/history-trim.js");
+  const apiProxy = {
+    sessions: { history: async () => { throw new Error("must not be called"); } },
+    subagents: { history: async () => { throw new Error("must not be called"); } },
+  };
+
+  const sessionResponse = captureResponse();
+  await createHistoryTrimHandler({ method: "session.history", apiProxy })(
+    jsonRequest({ type: "client-request", rpcId: "rpc-key", method: "session.history", payload: { sessionId: "s-1", unexpected: 1 } }),
+    sessionResponse
+  );
+  const sessionWire = JSON.parse(sessionResponse.body.toString());
+  assert.equal(sessionWire.result.ok, false);
+  assert.equal(sessionWire.result.error.code, "bad-request");
+
+  const subagentResponse = captureResponse();
+  await createHistoryTrimHandler({ method: "subagent.history", apiProxy })(
+    jsonRequest({
+      type: "client-request",
+      rpcId: "rpc-mode",
+      method: "subagent.history",
+      payload: { parentSessionId: "p-1", childSessionId: "c-1", mode: "bogus" },
+    }),
+    subagentResponse
+  );
+  assert.equal(JSON.parse(subagentResponse.body.toString()).result.error.code, "bad-request");
+});
+
+test("history trim handler accepts the schema-valid subagent payload", async () => {
+  const { createHistoryTrimHandler } = await import("../lib/history-trim.js");
+  let forwarded;
+  const apiProxy = {
+    subagents: {
+      history: async ({ rpcId, payload }) => {
+        forwarded = payload;
+        return { rpcId, result: { ok: true, value: { events: [], hasMore: false } } };
+      },
+    },
+  };
+  const response = captureResponse();
+  await createHistoryTrimHandler({ method: "subagent.history", apiProxy })(
+    jsonRequest({
+      type: "client-request",
+      rpcId: "rpc-ok",
+      method: "subagent.history",
+      payload: { parentSessionId: "p-1", childSessionId: "c-1", mode: "continuable", maxMessages: 50 },
+    }),
+    response
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(forwarded, { parentSessionId: "p-1", childSessionId: "c-1", mode: "continuable", maxMessages: 50 });
+});
+
+test("history trim handler enforces the JSON media type before reading the body", async () => {
+  const { createHistoryTrimHandler } = await import("../lib/history-trim.js");
+  let called = false;
+  const apiProxy = { sessions: { history: async () => { called = true; } } };
+  const response = captureResponse();
+  await createHistoryTrimHandler({ method: "session.history", apiProxy })(
+    jsonRequest({ type: "client-request" }, { "content-type": "text/plain" }),
+    response
+  );
+  assert.equal(response.status, 415);
+  assert.equal(called, false);
 });

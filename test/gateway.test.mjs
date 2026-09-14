@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
 import { createServer } from "node:http";
 import { mkdtemp, readFile } from "node:fs/promises";
+import { connect, createServer as createTcpServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -221,4 +223,63 @@ test("concurrent ticket creation preserves every ticket", async () => {
   await Promise.all(Array.from({ length: 12 }, () => createPairingTicket({ statePath })));
   const state = JSON.parse(await readFile(statePath, "utf8"));
   assert.equal(state.tickets.length, 12);
+});
+
+test("close destroys a connection left open and resolves", async (t) => {
+  const f = await fixture();
+  t.after(f.close);
+  const socket = connect(f.gateway.port, "127.0.0.1");
+  socket.on("error", () => {});
+  await once(socket, "connect");
+  const closed = new Promise((resolve) => socket.once("close", resolve));
+  await f.gateway.close();
+  await closed;
+  assert.equal(socket.destroyed, true);
+});
+
+test("close destroys a live upgraded tunnel and resolves", async (t) => {
+  // A raw TCP upstream accepts the tunnel without owning HTTP upgrade semantics.
+  const upstreamSockets = [];
+  const upstream = createTcpServer((socket) => {
+    upstreamSockets.push(socket);
+    socket.on("error", () => {});
+  });
+  await new Promise((resolve) => upstream.listen(0, "127.0.0.1", resolve));
+  const directory = await mkdtemp(join(tmpdir(), "dsh-network-upgrade-test-"));
+  const statePath = join(directory, "state.json");
+  const gateway = await new DshNetworkGateway({
+    upstreamPort: upstream.address().port,
+    gatewayPort: 0,
+    bindHost: "127.0.0.1",
+    statePath,
+    hostName: "Test DSH",
+  }).start();
+  t.after(async () => {
+    await gateway.close();
+    for (const socket of upstreamSockets) socket.destroy();
+    await new Promise((resolve) => upstream.close(resolve));
+  });
+
+  const pairing = await createPairingTicket({ statePath });
+  const paired = await (await fetch(`http://127.0.0.1:${gateway.port}/dsh-network/pair`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ticket: pairing.ticket }),
+  })).json();
+
+  const socket = connect(gateway.port, "127.0.0.1");
+  socket.on("error", () => {});
+  await once(socket, "connect");
+  const upstreamConnected = once(upstream, "connection");
+  socket.write(
+    `GET /tunnel HTTP/1.1\r\nhost: 127.0.0.1:${gateway.port}\r\nupgrade: websocket\r\nconnection: upgrade\r\n` +
+    `authorization: Bearer ${paired.accessToken}\r\n\r\n`
+  );
+  await upstreamConnected;
+  assert.equal(gateway.upgrades.size, 1);
+
+  const closed = new Promise((resolve) => socket.once("close", resolve));
+  await gateway.close();
+  await closed;
+  assert.equal(socket.destroyed, true);
 });

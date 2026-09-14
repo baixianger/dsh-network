@@ -1,6 +1,6 @@
 {
   "name": "dsh-network",
-  "version": "0.1.0-rc.8",
+  "version": "0.1.0-rc.9",
   "description": "Secure LAN, Tailnet, and remote connectivity for DeepSeek Harness.",
   "type": "module",
   "main": "./lib/index.js",
@@ -52,7 +52,8 @@
     "network",
     "p2p",
     "quic",
-    "iroh"
+    "iroh",
+    "dsh-plugin"
   ],
   "author": "Xiang Bai",
   "license": "MIT",
@@ -80,6 +81,6 @@
   },
   "publishConfig": {
     "access": "public",
-    "tag": "next"
+    "tag": "latest"
   }
 }
