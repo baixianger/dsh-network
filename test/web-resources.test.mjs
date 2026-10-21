@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -123,3 +123,28 @@ test("the local web resource issues a QR-encoded one-time pairing ticket", async
   assert.equal(missing.status, 400);
 });
 
+test("missing optional apiProxy keeps ordinary web resources available", async (t) => {
+  const manifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(Object.hasOwn(manifest.peerDependencies, "@deepseek-ai/dsh-host-apiproxy"), false);
+  const lock = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
+  assert.equal(Object.hasOwn(lock.packages[""].peerDependencies, "@deepseek-ai/dsh-host-apiproxy"), false);
+  assert.equal(Object.hasOwn(lock.packages, "node_modules/@deepseek-ai/dsh-host-apiproxy"), false);
+  const { routes, ctx, statePath } = webFixture(t);
+  let injectionCount = 0;
+  ctx.inject = (services, callback) => {
+    assert.deepEqual(services, ["apiProxy"]);
+    injectionCount += 1;
+    callback({
+      apiProxy: undefined,
+      effect() { assert.fail("missing apiProxy must not register history routes"); },
+    });
+  };
+
+  await apply(ctx, { gatewayPort: 0, bindHost: "127.0.0.1", statePath });
+
+  assert.equal(injectionCount, 1);
+  assert.ok(routes.has("/dsh-network/ui-config"));
+  assert.ok(routes.has("/dsh-network/app-icon.png"));
+  assert.equal(routes.has("/api/session.history"), false);
+  assert.equal(routes.has("/api/subagent.history"), false);
+});
